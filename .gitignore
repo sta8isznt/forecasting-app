@@ -28,3 +28,6 @@ plots/*.png
 plots/*.jpg
 plots/*.pdf
 !plots/README.md
+
+# Local Tests
+/tests
