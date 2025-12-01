@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+.vscode/
+.idea/
+streamlit/
+data/
+plots/
+models/
