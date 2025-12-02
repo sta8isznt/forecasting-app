@@ -1,10 +1,33 @@
+# Python cache
 __pycache__/
 *.pyc
+
+# Virtual environment
 .env
-.env.*
+.env*/
+
+# IDEs
 .vscode/
 .idea/
-streamlit/
-data/
-plots/
-models/
+
+# Streamlit cache
+.streamlit/
+
+# Data OUTPUT (raw downloads)
+data/raw/*
+data/cache/*
+!data/README.md
+
+# Model artifacts
+models/weights/*
+models/checkpoints/*
+!models/README.md
+
+# Plots OUTPUT
+plots/*.png
+plots/*.jpg
+plots/*.pdf
+!plots/README.md
+
+# Local Tests
+/tests
