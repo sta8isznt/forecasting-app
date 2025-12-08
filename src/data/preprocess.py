@@ -20,6 +20,10 @@ def select_target_column(df, target_column):
     """Return the values from a specific column"""
     return df[[target_column]]
 
+def compute_returns(df, column="Close"):
+    """Return the returns of a series"""
+    return df[[column]].pct_change().dropna()
+
 def preprocess(df, ticker=None, target_column=None):
     df = df.sort_index()
     df = fill_missing_dates(df)
