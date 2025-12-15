@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 def fill_missing_dates(df, freq="D"):
     """Forward fill the missing dates"""
@@ -23,6 +24,10 @@ def select_target_column(df, target_column):
 def compute_returns(df, column="Close"):
     """Return the returns of a series"""
     return df[[column]].pct_change().dropna()
+
+def compute_log_returns(df):
+    """Calculates the log returns of the series"""
+    return np.log(df/df.shift(1))
 
 def preprocess(df, ticker=None, target_column=None):
     df = df.sort_index()
