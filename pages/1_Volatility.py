@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -19,8 +18,7 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("Volatility Lab")
-st.caption("Explore rolling realized and annualized volatility with adjustable windows.")
+st.title("Volatility")
 
 # ------------------
 # Cached helpers (reuse downloads between tweaks)
@@ -79,7 +77,7 @@ def preprocess_data(raw, tickers: tuple):
     return tidy
 
 
-def compute_vol_surfaces(data: pd.DataFrame, tickers: list, rv_window: int, hv_window: int, horizon: int):
+def compute_vol_series(data: pd.DataFrame, tickers: list, rv_window: int, hv_window: int):
     """Compute realized and annualized volatility series per ticker."""
     outputs = []
     for ticker in tickers:
@@ -92,22 +90,19 @@ def compute_vol_surfaces(data: pd.DataFrame, tickers: list, rv_window: int, hv_w
         realized = get_realized_vol_theoritical(price, rv_window).squeeze()
         annualized = get_annualized_hist_vol(price, hv_window).squeeze()
 
-        horizon_scaled = annualized * np.sqrt(horizon / 252)
-
         vol_df = pd.DataFrame(
             {
                 "date": price.index,
                 "ticker": ticker,
                 "realized_vol": realized,
                 "annualized_vol": annualized,
-                "horizon_vol": horizon_scaled,
             }
         ).dropna(subset=["realized_vol", "annualized_vol"])
 
         outputs.append(vol_df)
 
     if not outputs:
-        return pd.DataFrame(columns=["date", "ticker", "realized_vol", "annualized_vol", "horizon_vol"])
+        return pd.DataFrame(columns=["date", "ticker", "realized_vol", "annualized_vol"])
 
     return pd.concat(outputs, ignore_index=True)
 
@@ -154,15 +149,6 @@ hv_window = st.sidebar.slider(
     help="Rolling window for historical annualized volatility.",
 )
 
-horizon_days = st.sidebar.slider(
-    "Horizon for scaling (days)",
-    min_value=1,
-    max_value=90,
-    value=21,
-    step=1,
-    help="Convert annualized vol to a shorter horizon using sqrt(h/252).",
-)
-
 if user_tickers.strip():
     requested = [t.strip().upper() for t in user_tickers.split(",") if t.strip()]
 else:
@@ -200,12 +186,11 @@ if data.empty:
 # ------------------
 # Compute volatility
 # ------------------
-vol_data = compute_vol_surfaces(
+vol_data = compute_vol_series(
     data,
     selected_tickers,
     rv_window=rv_window,
     hv_window=hv_window,
-    horizon=horizon_days,
 )
 
 if vol_data.empty:
@@ -215,38 +200,36 @@ if vol_data.empty:
 # ------------------
 # Snapshot metrics
 # ------------------
-st.subheader("Latest snapshot")
+st.subheader("Latest values")
 
-latest = vol_data.sort_values("date").groupby("ticker").tail(1)
-for chunk_start in range(0, len(latest), 3):
-    cols = st.columns(3)
-    for idx, (_, row) in enumerate(latest.iloc[chunk_start:chunk_start + 3].iterrows()):
-        cols[idx].metric(
-            label=row["ticker"],
-            value=f"{row['annualized_vol']:.2%}",
-            delta=f"Horizon {horizon_days}d: {row['horizon_vol']:.2%}",
-            delta_color="inverse",
-        )
+latest = (
+    vol_data.sort_values("date")
+    .groupby("ticker")
+    .tail(1)[["ticker", "annualized_vol", "realized_vol"]]
+    .rename(columns={"annualized_vol": "Annualized Vol", "realized_vol": f"Realized {rv_window}d"})
+)
+
+st.dataframe(
+    latest,
+    hide_index=True,
+    use_container_width=True,
+    column_config={
+        "Annualized Vol": st.column_config.NumberColumn(format="%.2f%%"),
+        f"Realized {rv_window}d": st.column_config.NumberColumn(format="%.2f%%"),
+    },
+)
 
 # ------------------
-# Charts
+# Chart
 # ------------------
 st.subheader("Rolling volatility")
 
-plot_df = vol_data.melt(
-    id_vars=["date", "ticker"],
-    value_vars=["realized_vol", "annualized_vol"],
-    var_name="metric",
-    value_name="vol",
-)
-
 fig = px.line(
-    plot_df,
+    vol_data,
     x="date",
-    y="vol",
+    y="annualized_vol",
     color="ticker",
-    line_dash="metric",
-    labels={"vol": "Volatility", "date": "Date", "ticker": "Ticker", "metric": "Metric"},
+    labels={"annualized_vol": "Annualized Volatility", "date": "Date", "ticker": "Ticker"},
 )
 fig.update_layout(
     height=500,
@@ -254,18 +237,3 @@ fig.update_layout(
     hovermode="x unified",
 )
 st.plotly_chart(fig, use_container_width=True)
-
-st.subheader(f"{horizon_days}-day scaled volatility (from annualized)")
-
-horizon_plot = px.line(
-    vol_data,
-    x="date",
-    y="horizon_vol",
-    color="ticker",
-    labels={"horizon_vol": "Scaled Volatility", "date": "Date", "ticker": "Ticker"},
-)
-horizon_plot.update_layout(
-    height=400,
-    hovermode="x unified",
-)
-st.plotly_chart(horizon_plot, use_container_width=True)

@@ -16,22 +16,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📈 Stock Market Dashboard")
-st.markdown(
-    """
-    <style>
-        body, .stApp {background-color: #0b0c10;}
-        /* add breathing room so the title isn't clipped */
-        .block-container {padding-top: 2.8rem;}
-        h1 {margin-top: 0;}
-        h1, h2, h3, h4, h5, h6 {color: #e8e9ea;}
-        .stMarkdown, .stMetric, .stDataFrame {color: #cfd2d6;}
-        .css-1offfwp, .st-emotion-cache-1dj3tuo {background: #0f1115;}
-        .stSlider, .stSelectbox, .stMultiSelect, .stTextInput {color: #cfd2d6;}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+st.title("Stock Dashboard")
 
 # ------------------
 # Load & preprocess (cached)
@@ -166,26 +151,23 @@ for chunk_start in range(0, len(selected_tickers), 3):
         )
 
 # ------------------
-# Price + OHLC/Volume chart
+# Price + volume
 # ------------------
-st.subheader("Price / OHLC / Volume")
+st.subheader("Price & Volume")
 
 col_interval, col_ticker = st.columns([1, 1])
 with col_interval:
     intervals = {
-        "1W": 7,
-        "1M": 30,
         "3M": 90,
         "6M": 182,
         "1Y": 365,
         "3Y": 365 * 3,
-        "5Y": 365 * 5,
         "MAX": None,
     }
     interval_choice = st.radio(
         "Interval",
         list(intervals.keys()),
-        index=5,  # default to 3Y
+        index=2,  # default to 1Y
         horizontal=True,
     )
 with col_ticker:
@@ -206,49 +188,49 @@ else:
         rows=2,
         cols=1,
         shared_xaxes=True,
-        vertical_spacing=0.02,
-        row_heights=[0.72, 0.28],
+        vertical_spacing=0.05,
+        row_heights=[0.7, 0.3],
     )
 
     fig.add_trace(
-        go.Candlestick(
+        go.Scatter(
             x=detail_df["date"],
-            open=detail_df["open"],
-            high=detail_df["high"],
-            low=detail_df["low"],
-            close=detail_df["close"],
-            name=detail_ticker,
-            increasing_line_color="#7fd3a8",
-            decreasing_line_color="#e36464",
+            y=detail_df["close"],
+            mode="lines",
+            name="Close",
         ),
         row=1,
         col=1,
     )
 
     if "volume" in detail_df.columns and not detail_df["volume"].isna().all():
-        colors = detail_df["close"].diff().apply(lambda x: "#7fd3a8" if x >= 0 else "#e36464")
         fig.add_trace(
             go.Bar(
                 x=detail_df["date"],
                 y=detail_df["volume"],
-                marker_color=colors,
                 name="Volume",
+                marker_color="#9ca3af",
             ),
             row=2,
             col=1,
         )
 
     fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="#0b0c10",
-        plot_bgcolor="#0b0c10",
-        margin=dict(l=20, r=20, t=20, b=20),
-        showlegend=False,
+        margin=dict(l=20, r=20, t=10, b=10),
         hovermode="x unified",
+        showlegend=False,
     )
     fig.update_xaxes(showgrid=False, row=1, col=1)
     fig.update_xaxes(title="Date", row=2, col=1)
-    fig.update_yaxes(title="Price", row=1, col=1)
+    fig.update_yaxes(title="Close", row=1, col=1)
     fig.update_yaxes(title="Volume", row=2, col=1)
 
     st.plotly_chart(fig, use_container_width=True)
+
+    st.caption("Recent OHLC")
+    st.dataframe(
+        detail_df[["date", "open", "high", "low", "close"]]
+        .tail(15)
+        .rename(columns=str.title),
+        hide_index=True,
+    )
