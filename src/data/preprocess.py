@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 def fill_missing_dates(df, freq="D"):
-    """Forward fill the missing dates"""
+    """Forward fill missing dates; default to business days to avoid weekends."""
     return df.resample(freq).ffill()
 
 def select_ticker(df, ticker):
